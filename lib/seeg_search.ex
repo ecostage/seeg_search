@@ -1,27 +1,31 @@
 defmodule SeegSearch do
-  def load_database(filename) do
+  import DefMemo
+
+  defmemo load_database(filename) do
     elem(Code.eval_file(filename), 0)
   end
 
-  def search(phrase, database) do
+  defmemo search(phrase, database) do
     parse_phrase(phrase, database)
     |> concat_defaults
   end
 
+  defmemo find_token(token, database) do
+    Enum.map(database, fn (record) ->
+      {word, _, _} = record
+      distance = TheFuzz.Similarity.Levenshtein
+        .compare(sanitize(word), token)
+      score = 1-(distance / Enum.max([String.length(sanitize(word)), String.length(token)]))
+      {record, score}
+    end)
+    |> Enum.max_by(fn({_, score}) -> score end)
+  end
+
   def parse_phrase(phrase, database) do
     tokenize(phrase)
-    |> Enum.map(fn (token) ->
-      res = Enum.map(database, fn (record) ->
-        {word, _, _} = record
-        distance = TheFuzz.Similarity.Levenshtein
-          .compare(sanitize(word), token)
-        score = 1-(distance / Enum.max([String.length(sanitize(word)), String.length(token)]))
-        {record, score}
-      end)
-      |> Enum.max_by(fn({_, score}) -> score end)
-    end)
+    |> Parallel.map(&find_token(&1, database))
     |> Enum.filter(fn({_, score}) -> score > 0.7 end)
-    |> Enum.sort_by(fn({_, score}) -> score end)
+    |> Enum.sort_by(fn({{word, _, _}, score}) -> [score, String.length(word)] end)
     |> Enum.reverse
     |> Enum.reduce([], fn(match, acc) ->
       {{_, match_type, _}, _} = match
@@ -48,21 +52,19 @@ defmodule SeegSearch do
     default
   end
 
-
   def concat_default(_, _) do
     nil
   end
 
-  def remove_invalid_words(phrase) do
-    Enum.reduce(invalid_words, phrase, fn(word, acc) ->
-      String.replace(acc, " #{word} ", " ", global: true)
-    end)
+  def remove_stop_words(phrase) do
+    phrase
+    |> String.split(" ")
+    |> Enum.filter(fn(word) -> !Enum.member?(stop_words, word) end)
+    |> Enum.join(" ")
   end
 
-  def remove_invalid_chars(phrase) do
-    Enum.reduce(invalid_chars, phrase, fn(char, acc) ->
-      String.replace(acc, char, " ", global: true)
-    end)
+  def remove_punctuation(phrase) do
+    String.replace(phrase, ~r/[\p{P}\p{S}]/, "")
   end
 
   def sanitize(phrase) do
@@ -71,8 +73,8 @@ defmodule SeegSearch do
     |> Enum.filter(fn(char) -> byte_size(char) == 1 end)
     |> Enum.join("")
     |> apply_transforms
-    |> remove_invalid_words
-    |> remove_invalid_chars
+    |> remove_stop_words
+    |> remove_punctuation
     |> String.strip
   end
 
@@ -87,18 +89,20 @@ defmodule SeegSearch do
     |> combine_tokens
   end
 
-  def combine_tokens(list, tokens \\ [])
+  def combine_tokens(list, acc \\ "", tokens \\ [], depth \\ 0)
 
-  def combine_tokens([], tokens), do: tokens
+  def combine_tokens(_, _, tokens, 3), do: tokens
+  def combine_tokens([], _, tokens, _), do: tokens
 
-  def combine_tokens([ head | [] ], tokens) do
-    combine_tokens([], [ head | tokens ])
+  defmemo combine_tokens([head | tail], "", tokens, depth) do
+    combine_tokens(tail, head, [head | tokens], depth)
+    |> Enum.uniq
   end
 
-  def combine_tokens([ head | tail ], tokens) do
-    [ next | _ ] = tail
-    tokens = [ head | [ Enum.join([head, next], " ") | tokens ]]
-    combine_tokens(tail, tokens)
+  def combine_tokens([head | tail], acc, tokens, depth) do
+    token = Enum.join([acc, head], " ")
+    combine_tokens(tail, token, [ token | tokens], depth+1)
+    |> Enum.concat(combine_tokens([head | tail], "", [], 0))
   end
 
   def required_types do
@@ -109,11 +113,8 @@ defmodule SeegSearch do
     ]
   end
 
-  def invalid_words do
-    ["o", "a", "os", "as", "no", "na", "com", "em", "nos", "nas", "do", "da", "dos", "das", "de"]
-  end
-
-  def invalid_chars do
-    ["(", ")"]
+  def stop_words do
+    ["o", "a", "os", "as", "no", "na", "com", "em", "nos", "nas", "do", "da",
+    "dos", "das", "de", "a", "o", "e"]
   end
 end

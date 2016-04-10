@@ -10,9 +10,9 @@ defmodule SeegSearchTest do
     assert length(SeegSearch.required_types()) > 1
   end
 
-  test "remove invalid words" do
+  test "remove stop words" do
     phrase = "Emissões de co2 no brasil"
-    assert SeegSearch.remove_invalid_words(phrase) == "Emissões co2 brasil"
+    assert SeegSearch.remove_stop_words(phrase) == "Emissões co2 brasil"
   end
 
   test "sanitize" do
@@ -20,17 +20,36 @@ defmodule SeegSearchTest do
     assert SeegSearch.sanitize(phrase) == "emisses co2e so paulo"
   end
 
+  test 'combine tokens' do
+    tokens = ["emissoes", "mato", "grosso", "sul"]
+    assert SeegSearch.combine_tokens(tokens) |> Enum.sort == Enum.sort([
+      "emissoes",
+      "emissoes mato",
+      "emissoes mato grosso",
+      "emissoes mato grosso sul",
+      "mato",
+      "mato grosso",
+      "mato grosso sul",
+      "grosso",
+      "grosso sul",
+      "sul"
+    ])
+  end
+
   test "tokenize" do
     phrase = "Emissões co2e são paulo"
-    assert SeegSearch.tokenize(phrase) == [
-      "paulo",
-      "so",
-      "so paulo",
+    assert SeegSearch.tokenize(phrase) |> Enum.sort == Enum.sort([
+      "emisses",
+      "emisses co2e",
+      "emisses co2e so",
+      "emisses co2e so paulo",
       "co2e",
       "co2e so",
-      "emisses",
-      "emisses co2e"
-    ]
+      "co2e so paulo",
+      "so",
+      "so paulo",
+      "paulo",
+    ])
   end
 
   test "concat defaults" do
@@ -60,7 +79,8 @@ defmodule SeegSearchTest do
     phrase = "Emissões de co2 no brasil"
     result = SeegSearch.parse_phrase(phrase, database)
     |> Enum.map(fn({{ text, _, _}, _}) -> text end)
+    |> Enum.sort
 
-    assert ["CO2 (t)", "Brasil", "Emissão"] = result
+    assert ["Brasil", "CO2 (t)", "Emissão"] = result
   end
 end
