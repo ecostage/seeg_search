@@ -11,7 +11,7 @@ defmodule SeegSearch do
   def parse_phrase(phrase, database) do
     tokenize(phrase)
     |> Enum.map(fn (token) ->
-      Enum.map(database, fn (record) ->
+      res = Enum.map(database, fn (record) ->
         {word, _, _} = record
         distance = TheFuzz.Similarity.Levenshtein
           .compare(sanitize(word), token)
@@ -22,6 +22,7 @@ defmodule SeegSearch do
     end)
     |> Enum.filter(fn({_, score}) -> score > 0.7 end)
     |> Enum.sort_by(fn({_, score}) -> score end)
+    |> Enum.reverse
     |> Enum.reduce([], fn(match, acc) ->
       {{_, match_type, _}, _} = match
       exists? = Enum.any?(acc, fn({{_, type, _}, _}) -> type == match_type end)
@@ -102,9 +103,9 @@ defmodule SeegSearch do
 
   def required_types do
     [
-      {:type, [default: {"Emissão", :type, [id: 1]}]},
-      {:territory, [default: {"Brasil", :territory, [id: 1]}]},
-      {:gas, [default: {"CO2e", :gas, [id: 1]}]},
+      {:type, [default: {"Emissão", :type, [id: "Emissão"]}]},
+      {:territory, [default: {"Brasil", :territory, [id: 28]}]},
+      {:gas, [default: {"CO2e (t GWP)", :gas, [id: 89]}]},
     ]
   end
 

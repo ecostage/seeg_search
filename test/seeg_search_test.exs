@@ -46,12 +46,12 @@ defmodule SeegSearchTest do
 
   test "search" do
     database = SeegSearch.load_database("test/database.exs")
-    phrase = "Emissões de co2 no brasil"
+    phrase = "Emissões de co2e gwp no brasil"
     result = SeegSearch.search(phrase, database)
     assert [
-      {"CO2 (t)", :gas, _},
-      {"Brasil", :territory, _},
       {"Emissão", :type, _},
+      {"Brasil", :territory, _},
+      {"CO2e (t GWP)", :gas, _},
     ] = result
   end
 
