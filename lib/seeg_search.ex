@@ -8,14 +8,18 @@ defmodule SeegSearch do
   ]
 
   defmemo search(phrase, index) do
-    tokenize(phrase)
-    |> Parallel.map(&Index.find(&1, index))
-    |> Enum.reject(&(is_nil(&1)))
-    |> Enum.sort_by(fn({{word, _}, score}) -> [score, String.length(word)] end)
-    |> Enum.reverse
-    |> Enum.map(fn({doc, _}) -> doc end)
-    |> Enum.uniq_by(fn({_, opts}) -> Keyword.fetch!(opts, :type) end)
-    |> concat_defaults(@required)
+    case phrase do
+      "" -> []
+      _ ->
+        tokenize(phrase)
+        |> Parallel.map(&Index.find(&1, index))
+        |> Enum.reject(&(is_nil(&1)))
+        |> Enum.sort_by(fn({{word, _}, score}) -> [score, String.length(word)] end)
+        |> Enum.reverse
+        |> Enum.map(fn({doc, _}) -> doc end)
+        |> Enum.uniq_by(fn({_, opts}) -> Keyword.fetch!(opts, :type) end)
+        |> concat_defaults(@required)
+    end
   end
 
   def concat_defaults(docs, required) do

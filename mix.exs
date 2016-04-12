@@ -28,6 +28,10 @@ defmodule SeegSearch.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [{:the_fuzz, "~> 0.2.2"},
-    {:defmemo, "~> 0.1.0"}]
+     {:defmemo, "~> 0.1.0"},
+     {:plug, "~> 1.1.3"},
+     {:cowboy, "~> 1.0.4"},
+     {:json, "~> 0.3.0"},
+     {:poison, "~> 2.0"}]
   end
 end

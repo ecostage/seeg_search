@@ -12,6 +12,11 @@ defmodule SeegSearchTest do
     ] = ret
   end
 
+  test "empty search" do
+    phrase = ""
+    assert SeegSearch.search(phrase, []) == []
+  end
+
   @tag timeout: 10000
   test "search" do
     db = Index.load_db("test/database.exs")
